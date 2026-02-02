@@ -2118,7 +2118,7 @@ let currentHijriDate = '';
 let currentGregorianDate = '';
 
 // رابط خادم الذكاء الاصطناعي
-const backendAIUrl = 'https://nassrbackend.onrender.com/generate';
+const backendAIUrl = 'https://nassrbackend.onrender.com/generate-report';
 
 // ==================== دوال التحويل والتواريخ ====================
 async function convertHijriToGregorian(hijriDate) {
