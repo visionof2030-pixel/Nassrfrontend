@@ -1866,6 +1866,10 @@ async function activateTool() {
 
         // حفظ التوكن النهائي
         localStorage.setItem("AI_TOKEN", data.token);
+        
+        // حفظ تاريخ انتهاء الصلاحية - إضافة مهمة
+        localStorage.setItem("EXPIRES_AT", data.expires_at);
+        startCountdown();
 
         // إخفاء شاشة التفعيل
         document.getElementById("activationScreen").style.display = "none";
@@ -1876,7 +1880,75 @@ async function activateTool() {
     } catch (error) {
         alert("❌ كود التفعيل غير صحيح أو منتهي");
         localStorage.removeItem("AI_TOKEN");
+        localStorage.removeItem("EXPIRES_AT");
     }
+}
+
+// ==================== نظام العد التنازلي ====================
+let countdownInterval = null;
+
+function startCountdown() {
+    const expiresAt = localStorage.getItem("EXPIRES_AT");
+    if (!expiresAt) return;
+
+    const expiryTime = new Date(expiresAt).getTime();
+
+    if (countdownInterval) clearInterval(countdownInterval);
+
+    countdownInterval = setInterval(() => {
+        const now = Date.now();
+        const diff = expiryTime - now;
+
+        if (diff <= 0) {
+            clearInterval(countdownInterval);
+            expireTool();
+            return;
+        }
+
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+
+        showCountdown(minutes, seconds);
+    }, 1000);
+}
+
+function showCountdown(min, sec) {
+    let el = document.getElementById("countdownTimer");
+
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "countdownTimer";
+        el.style.cssText = `
+            position:fixed;
+            bottom:10px;
+            left:10px;
+            background:#044a35;
+            color:#fff;
+            padding:8px 12px;
+            border-radius:8px;
+            font-size:13px;
+            z-index:9999;
+            box-shadow:0 4px 12px rgba(0,0,0,.2);
+        `;
+        document.body.appendChild(el);
+    }
+
+    el.textContent = `⏳ ينتهي الكود بعد ${min} دقيقة و ${sec} ثانية`;
+}
+
+function expireTool() {
+    alert("⛔ انتهت صلاحية كود الاشتراك");
+    localStorage.removeItem("AI_TOKEN");
+    localStorage.removeItem("EXPIRES_AT");
+    
+    // إزالة العداد إذا كان موجوداً
+    const timerEl = document.getElementById("countdownTimer");
+    if (timerEl) {
+        timerEl.remove();
+    }
+    
+    // إعادة تحميل الصفحة للعودة لشاشة التفعيل
+    location.reload();
 }
 
 // ==================== كائن التقارير ====================
@@ -2118,7 +2190,7 @@ let currentHijriDate = '';
 let currentGregorianDate = '';
 
 // رابط خادم الذكاء الاصطناعي
-const backendAIUrl = 'https://nassrbackend.onrender.com/generate-report';
+const backendAIUrl = 'https://nassrbackend.onrender.com/generate';
 
 // ==================== دوال التحويل والتواريخ ====================
 async function convertHijriToGregorian(hijriDate) {
@@ -2659,6 +2731,45 @@ async function fillWithAI() {
     aiButton.disabled = true;
     
     try {
+        const prompt = `أنت خبير تربوي تعليمي محترف تمتلك خبرة ميدانية واسعة في التعليم العام.  
+اعتمد منظورًا تربويًا مهنيًا احترافيًا يركّز على تحسين جودة التعليم، ودعم المعلم، وتعزيز بيئة التعلّم، وخدمة القيادة المدرسية.  
+
+التقرير المطلوب: "${reportType}"
+${subject ? `المادة: ${subject}` : ''}
+${lesson ? `الدرس: ${lesson}` : ''}
+${grade ? `الصف: ${grade}` : ''}
+${target ? `المستهدفون: ${target}` : ''}
+${place ? `مكان التنفيذ: ${place}` : ''}
+${count ? `عدد الحضور: ${count}` : ''}
+
+**توجيهات مهنية:**
+- كن موضوعيًا ومتزنًا وبنّاءً  
+- قدّم الملاحظات بصيغة تطويرية غير نقدية  
+- راعِ واقع الميدان التعليمي وسياق المدرسة  
+- اربط بين المعلم والطالب والمنهج والبيئة الصفية والقيادة المدرسية  
+- ركّز على جودة التعليم وأثر الممارسات على تعلم الطلاب  
+- التزم بلغة عربية فصيحة سليمة وخالية من الأخطاء  
+
+**شروط المحتوى:**اكتب محتوى كل حقل بصيغة تقريرية مهنية وكأنه صادر عن المعلم.
+لا تكتب أبداً عنوان الحقل داخل المحتوى ولا تعِد صياغته بصيغة مباشرة (مثل: الهدف التربوي هو، النبذة المختصرة).
+يجب أن يحتوي كل حقل على ما يقارب 25 كلمة.
+ابدأ بالمضمون مباشرة دون تمهيد أو عبارات إنشائية.
+يمكن الاستفادة من معنى العنوان أو أحد مفاهيمه بشكل غير مباشر فقط عند الحاجة وبما يخدم الفكرة دون تكرار أو حشو.
+احرص على وجود ترابط منطقي بين الأهداف، النبذة المختصرة، الاستراتيجيات، إجراءات التنفيذ، نقاط القوة، نقاط التحسين، والتوصيات.
+اربط المحتوى بالمادة الدراسية وعنوان الدرس إن وُجد، وكذلك بمكان التنفيذ، بأسلوب مهني متوازن يجمع بين الإشارة المباشرة وغير المباشرة دون تكلف.
+اجعل الهدف النهائي للمحتوى تحسين الممارسة التعليمية ودعم التطوير المهني المستدام.
+راعِ الوضوح والترابط، واجعل كل جملة تضيف قيمة تعليمية فعلية.
+الحقول المطلوبة:**
+1. الهدف التربوي
+2. نبذة مختصرة  
+3. إجراءات التنفيذ
+4. الاستراتيجيات
+5. نقاط القوة
+6. نقاط التحسين
+7. التوصيات
+
+يرجى تقديم الإجابة باللغة العربية الفصحى، وتنظيمها بحيث يكون كل حقل في سطر منفصل يبدأ برقمه فقط دون ذكر العنوان.`;
+
         const response = await fetch(backendAIUrl, {
             method: 'POST',
             headers: {
@@ -2666,13 +2777,16 @@ async function fillWithAI() {
                 'X-Token': token
             },
             body: JSON.stringify({
-                report_type: reportType,
-                subject: subject,
-                lesson: lesson,
-                grade: grade,
-                target: target,
-                place: place,
-                count: count
+                prompt: prompt,
+                reportData: {
+                    reportType: reportType,
+                    subject: subject,
+                    lesson: lesson,
+                    grade: grade,
+                    target: target,
+                    place: place,
+                    count: count
+                }
             })
         });
 
@@ -2687,7 +2801,7 @@ async function fillWithAI() {
         }
 
         const aiResponse = data.answer;
-        parseAIResponse(aiResponse);
+        parseAIResponseProfessional(aiResponse);
         showNotification('تم تعبئة الحقول باستخدام الذكاء الاصطناعي بنجاح! ✓');
         
     } catch (error) {
@@ -2705,8 +2819,8 @@ async function fillWithAI() {
     }
 }
 
-// دالة بسيطة لتحليل استجابة الذكاء الاصطناعي
-function parseAIResponse(response) {
+// دالة محسنة لتحليل استجابة الذكاء الاصطناعي المهنية
+function parseAIResponseProfessional(response) {
     const lines = response.split('\n').filter(line => line.trim());
     
     const fieldMapping = {
@@ -2725,10 +2839,15 @@ function parseAIResponse(response) {
         const match = line.match(/^(\d+)[\.\-]\s*(.+)/);
         if (match) {
             const fieldNumber = match[1];
-            const content = match[2].trim();
+            let content = match[2].trim();
+            
+            content = removeFieldTitles(content);
             
             if (fieldMapping[fieldNumber]) {
                 const fieldId = fieldMapping[fieldNumber];
+                content = ensureWordCount(content, 25);
+                content = addProfessionalTouch(content, fieldId);
+                
                 document.getElementById(fieldId).value = content;
                 foundFields++;
             }
@@ -2736,17 +2855,110 @@ function parseAIResponse(response) {
     });
     
     if (foundFields < 3) {
-        fallbackAIParsing(response);
+        fallbackProfessionalAIParsing(response);
     }
     
     updateReport();
 }
 
-// نهج بديل بسيط لتحليل الاستجابة
-function fallbackAIParsing(response) {
+// دالة لإزالة عناوين الحقول من النص
+function removeFieldTitles(content) {
+    const fieldTitles = [
+        'الهدف التربوي', 'الهدف التربوي', ,
+        'نبذة مختصرة', 'نبذة مختصرة', ,
+        'إجراءات التنفيذ', 'إجراءات التنفيذ', ,
+        'الاستراتيجيات', 'الاستراتيجيات',
+        'نقاط القوة', 'نقاط القوة',
+        'نقاط التحسين', 'نقاط تحسين',
+        'التوصيات', 'التوصيات',
+        'هو:', 'تشمل:', 'تشمل', 'يتضمن:', 'يتضمن',
+        'يتمثل في', 'يتمثل', 'يمثل', 'يتم',
+        'يشمل', 'تحتوي', 'تتضمن'
+    ];
+    
+    let cleanedContent = content;
+    
+    fieldTitles.forEach(title => {
+        const regex = new RegExp(`^${title}[:\\.\\-]?\\s*`, 'i');
+        cleanedContent = cleanedContent.replace(regex, '');
+        
+        const regex2 = new RegExp(`\\s*${title}[:\\.\\-]?\\s*`, 'gi');
+        cleanedContent = cleanedContent.replace(regex2, ' ');
+    });
+    
+    cleanedContent = cleanedContent.trim().replace(/\s+/g, ' ');
+    
+    return cleanedContent || content;
+}
+
+// دالة لتأكيد عدد الكلمات مع لمسة مهنية
+function ensureWordCount(content, targetWords) {
+    const words = content.split(' ');
+    
+    if (words.length >= targetWords - 5 && words.length <= targetWords + 5) {
+        return content;
+    }
+    
+    if (words.length < targetWords - 5) {
+        const professionalPhrases = [
+            'مع التركيز على تحقيق أهداف التعلم وتنمية المهارات الأساسية',
+            'بما يسهم في رفع مستوى التحصيل الدراسي وتحسين المخرجات التعليمية',
+            'وذلك لتحقيق التكامل بين الجوانب المعرفية والمهارية والوجدانية',
+            'مع مراعاة الفروق الفردية وتنويع أساليب التدريس لتناسب جميع الطلاب',
+            'لضمان تحقيق رؤية التعليم وتطوير العملية التعليمية بصورة شاملة',
+            'مع الاستفادة من أفضل الممارسات التربوية والتقنيات التعليمية الحديثة',
+            'بما يعزز من دور المعلم كميسر للتعلم وموجه للطالب نحو التميز'
+        ];
+        
+        let extendedContent = content;
+        while (extendedContent.split(' ').length < targetWords) {
+            const randomPhrase = professionalPhrases[Math.floor(Math.random() * professionalPhrases.length)];
+            extendedContent += ' ' + randomPhrase;
+        }
+        
+        const extendedWords = extendedContent.split(' ');
+        if (extendedWords.length > targetWords + 5) {
+            return extendedWords.slice(0, targetWords).join(' ');
+        }
+        
+        return extendedContent;
+    }
+    
+    if (words.length > targetWords + 5) {
+        return words.slice(0, targetWords).join(' ');
+    }
+    
+    return content;
+}
+
+// دالة لإضافة لمسة مهنية للمحتوى
+function addProfessionalTouch(content, fieldId) {
+    const words = content.split(' ');
+    if (words.length >= 20) return content;
+    
+    const professionalAdditions = {
+        'goal': ' بما يعزز من جودة التعليم ويدعم تحقيق رؤية المدرسة التعليمية',
+        'summary': ' مع التركيز على الأثر الإيجابي في تحسين الممارسات التعليمية',
+        'steps': ' ومراعاة الجوانب التربوية والنفسية للطلاب في جميع المراحل',
+        'strategies': ' بما يناسب البيئة الصفية ويحقق أقصى استفادة تعليمية',
+        'strengths': ' مما يسهم في تحقيق بيئة تعلم إيجابية ومنتجة',
+        'improve': ' مع وضع خطط تطويرية قابلة للتنفيذ في الفصول القادمة',
+        'recomm': ' بما يدعم التطوير المهني المستمر ويعزز جودة التعليم'
+    };
+    
+    if (professionalAdditions[fieldId]) {
+        return content + professionalAdditions[fieldId];
+    }
+    
+    return content;
+}
+
+// نهج بديل محسن لتحليل الاستجابة المهنية
+function fallbackProfessionalAIParsing(response) {
     const sentences = response.split(/[\.\n]/).filter(s => {
         const trimmed = s.trim();
-        return trimmed.length > 10;
+        return trimmed.length > 20 && 
+               !trimmed.match(/الهدف التربوي|نبذة مختصرة|إجراءات التنفيذ|الاستراتيجيات|نقاط القوة|نقاط التحسين|التوصيات|الحقل|المطلوب|يجب|يرجى/i);
     });
     
     const fields = ['goal', 'summary', 'steps', 'strategies', 'strengths', 'improve', 'recomm'];
@@ -2754,9 +2966,20 @@ function fallbackAIParsing(response) {
     let sentenceIndex = 0;
     fields.forEach((field, index) => {
         if (sentenceIndex < sentences.length) {
-            const content = sentences[sentenceIndex].trim();
+            let content = sentences[sentenceIndex].trim();
+            content = removeFieldTitles(content);
+            content = ensureWordCount(content, 25);
+            content = addProfessionalTouch(content, field);
+            
             document.getElementById(field).value = content;
             sentenceIndex++;
+        } else if (sentenceIndex > 0) {
+            const previousContent = document.getElementById(fields[sentenceIndex-1]).value;
+            if (previousContent) {
+                const words = previousContent.split(' ');
+                const modifiedContent = words.slice(5).join(' ') + ' مع التركيز على تطوير الممارسات التعليمية وتحسين جودة التعلم';
+                document.getElementById(field).value = ensureWordCount(modifiedContent, 25);
+            }
         }
     });
 }
@@ -3033,11 +3256,13 @@ function initializeApp() {
 // ==================== عند تحميل الصفحة ====================
 document.addEventListener("DOMContentLoaded", function() {
     const token = localStorage.getItem("AI_TOKEN");
+    const expiresAt = localStorage.getItem("EXPIRES_AT");
     
-    if (token) {
+    if (token && expiresAt) {
         // المستخدم مفعل سابقًا - عرض التطبيق مباشرة
         document.getElementById("activationScreen").style.display = "none";
         initializeApp();
+        startCountdown(); // بدء العد التنازلي
     } else {
         // المستخدم غير مفعل - عرض شاشة التفعيل
         document.getElementById("activationScreen").style.display = "flex";
@@ -3046,4 +3271,4 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 </body>
-</html> 
+</html>
