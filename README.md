@@ -12,6 +12,23 @@
 html,body{font-family:'Cairo',sans-serif;background: linear-gradient(135deg, #f0f9f6 0%, #e8f4f0 50%, #d4ebe2 100%);direction:rtl;overflow-x:hidden;min-height:100vh;-webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; -ms-text-size-adjust:100%; text-size-adjust:100%; touch-action: manipulation;}
 .wrapper{max-width:900px;margin:auto;padding:20px;width:100%;}
 
+/* العداد التنازلي الجديد */
+#subscriptionTimer {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, #044a35 0%, #022e22 100%);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    border-right: 3px solid #ffd166;
+    max-width: 300px;
+    text-align: center;
+}
+
 /* شريط الأخبار العلوي - محسن للأجهزة المحمولة */
 .top-marquee{
 position:fixed;top:0;left:0;right:0;width:100%;background:linear-gradient(135deg, #022e22 0%, #044a35 100%);color:#fff;
@@ -643,6 +660,15 @@ left: 10px;
 max-width: unset;
 bottom: 10px;
 }
+
+#subscriptionTimer {
+    bottom: 5px;
+    left: 5px;
+    right: 5px;
+    max-width: unset;
+    font-size: 11px;
+    padding: 6px 8px;
+}
 }
 
 /* تحسينات للشاشات الصغيرة جداً */
@@ -728,6 +754,11 @@ font-size: 18px;
 padding: 12px;
 font-size: 13px;
 }
+
+#subscriptionTimer {
+    font-size: 10px;
+    padding: 4px 6px;
+}
 }
 
 /* تحسينات للأجهزة فائقة الصغر */
@@ -762,6 +793,10 @@ padding: 10px;
 input, select, textarea {
 padding: 10px;
 }
+
+#subscriptionTimer {
+    font-size: 9px;
+}
 }
 
 /* تحسينات خاصة لـ iPhone ذات الشقوق */
@@ -782,6 +817,10 @@ padding-bottom: env(safe-area-inset-top);
 .input-section {
 margin-top: calc(140px + env(safe-area-inset-top) * 2);
 }
+
+#subscriptionTimer {
+    bottom: env(safe-area-inset-bottom);
+}
 }
 
 /* iPhone 12/13/14 */
@@ -801,6 +840,10 @@ padding-bottom: env(safe-area-inset-top);
 .input-section {
 margin-top: calc(140px + env(safe-area-inset-top) * 2);
 }
+
+#subscriptionTimer {
+    bottom: env(safe-area-inset-bottom);
+}
 }
 
 /* iPhone 12/13/14 Pro Max */
@@ -819,6 +862,10 @@ padding-bottom: env(safe-area-inset-top);
 
 .input-section {
 margin-top: calc(140px + env(safe-area-inset-top) * 2);
+}
+
+#subscriptionTimer {
+    bottom: env(safe-area-inset-bottom);
 }
 }
 
@@ -846,6 +893,10 @@ font-size: 14px;
 .auto-btn {
 padding: 8px;
 font-size: 12px;
+}
+
+#subscriptionTimer {
+    bottom: 5px;
 }
 }
 
@@ -882,6 +933,11 @@ padding: 12px;
 .form-row {
 grid-template-columns: 1fr 1fr;
 gap: 10px;
+}
+
+#subscriptionTimer {
+    bottom: 5px;
+    left: 5px;
 }
 }
 
@@ -1372,6 +1428,9 @@ font-family:Cairo;
   </div>
 </div>
 
+<!-- عداد الاشتراك -->
+<div id="subscriptionTimer"></div>
+
 <div class="top-marquee">
 <div class="marquee-inner">
 <i class="fas fa-bullhorn" style="margin-left:10px;"></i>
@@ -1837,7 +1896,6 @@ font-family:Cairo;
 </div>
 
 <script>
-
 // ==================== وظائف التفعيل ====================
 async function activateTool() {
     const code = document.getElementById("activationInput").value.trim();
@@ -1867,88 +1925,80 @@ async function activateTool() {
         // حفظ التوكن النهائي
         localStorage.setItem("AI_TOKEN", data.token);
         
-        // حفظ تاريخ انتهاء الصلاحية - إضافة مهمة
-        localStorage.setItem("EXPIRES_AT", data.expires_at);
-        startCountdown();
+        // حفظ تاريخ انتهاء الصلاحية بتنسيق AI_EXPIRES_AT
+        localStorage.setItem("AI_EXPIRES_AT", data.expires_at);
 
         // إخفاء شاشة التفعيل
         document.getElementById("activationScreen").style.display = "none";
 
-        // تشغيل الأداة
+        // تشغيل الأداة والعداد
         initializeApp();
+        startSubscriptionCountdown();
 
     } catch (error) {
         alert("❌ كود التفعيل غير صحيح أو منتهي");
         localStorage.removeItem("AI_TOKEN");
-        localStorage.removeItem("EXPIRES_AT");
+        localStorage.removeItem("AI_EXPIRES_AT");
     }
 }
 
-// ==================== نظام العد التنازلي ====================
-let countdownInterval = null;
+// ==================== نظام العد التنازلي المعدل ====================
+function startSubscriptionCountdown() {
+    const timerEl = document.getElementById("subscriptionTimer");
+    const expiresAt = localStorage.getItem("AI_EXPIRES_AT");
 
-function startCountdown() {
-    const expiresAt = localStorage.getItem("EXPIRES_AT");
-    if (!expiresAt) return;
+    if (!timerEl || !expiresAt) {
+        if (timerEl) timerEl.textContent = "⏳ الاشتراك غير مفعل";
+        return;
+    }
 
-    const expiryTime = new Date(expiresAt).getTime();
+    const expiresTime = new Date(expiresAt).getTime();
 
-    if (countdownInterval) clearInterval(countdownInterval);
-
-    countdownInterval = setInterval(() => {
+    function updateCountdown() {
         const now = Date.now();
-        const diff = expiryTime - now;
+        let diff = expiresTime - now;
 
         if (diff <= 0) {
-            clearInterval(countdownInterval);
-            expireTool();
+            timerEl.textContent = "⛔ انتهت صلاحية الاشتراك";
+            localStorage.clear();
+            // إعادة تحميل الصفحة للعودة إلى شاشة التفعيل
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
             return;
         }
 
-        const minutes = Math.floor(diff / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        diff %= (1000 * 60 * 60 * 24);
 
-        showCountdown(minutes, seconds);
-    }, 1000);
-}
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        diff %= (1000 * 60 * 60);
 
-function showCountdown(min, sec) {
-    let el = document.getElementById("countdownTimer");
+        const minutes = Math.floor(diff / (1000 * 60));
+        const seconds = Math.floor((diff / 1000) % 60);
 
-    if (!el) {
-        el = document.createElement("div");
-        el.id = "countdownTimer";
-        el.style.cssText = `
-            position:fixed;
-            bottom:10px;
-            left:10px;
-            background:#044a35;
-            color:#fff;
-            padding:8px 12px;
-            border-radius:8px;
-            font-size:13px;
-            z-index:9999;
-            box-shadow:0 4px 12px rgba(0,0,0,.2);
-        `;
-        document.body.appendChild(el);
+        // تنسيق الرسالة
+        let message = `⏳ ينتهي الاشتراك بعد `;
+        
+        if (days > 0) {
+            message += `${days} يوم `;
+        }
+        
+        if (hours > 0) {
+            message += `${hours} ساعة `;
+        }
+        
+        if (minutes > 0) {
+            message += `${minutes} دقيقة `;
+        }
+        
+        message += `${seconds} ثانية`;
+
+        timerEl.textContent = message;
     }
 
-    el.textContent = `⏳ ينتهي الكود بعد ${min} دقيقة و ${sec} ثانية`;
-}
-
-function expireTool() {
-    alert("⛔ انتهت صلاحية كود الاشتراك");
-    localStorage.removeItem("AI_TOKEN");
-    localStorage.removeItem("EXPIRES_AT");
-    
-    // إزالة العداد إذا كان موجوداً
-    const timerEl = document.getElementById("countdownTimer");
-    if (timerEl) {
-        timerEl.remove();
-    }
-    
-    // إعادة تحميل الصفحة للعودة لشاشة التفعيل
-    location.reload();
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
 }
 
 // ==================== كائن التقارير ====================
@@ -3256,16 +3306,21 @@ function initializeApp() {
 // ==================== عند تحميل الصفحة ====================
 document.addEventListener("DOMContentLoaded", function() {
     const token = localStorage.getItem("AI_TOKEN");
-    const expiresAt = localStorage.getItem("EXPIRES_AT");
+    const expiresAt = localStorage.getItem("AI_EXPIRES_AT");
     
     if (token && expiresAt) {
         // المستخدم مفعل سابقًا - عرض التطبيق مباشرة
         document.getElementById("activationScreen").style.display = "none";
         initializeApp();
-        startCountdown(); // بدء العد التنازلي
+        startSubscriptionCountdown(); // بدء العد التنازلي المعدل
     } else {
         // المستخدم غير مفعل - عرض شاشة التفعيل
         document.getElementById("activationScreen").style.display = "flex";
+        // إظهار رسالة في العداد
+        const timerEl = document.getElementById("subscriptionTimer");
+        if (timerEl) {
+            timerEl.textContent = "⏳ الاشتراك غير مفعل";
+        }
     }
 });
 </script>
